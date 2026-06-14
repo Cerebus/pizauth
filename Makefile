@@ -11,19 +11,22 @@ MANDIR ?= ${MANDIR.${PREFIX}}
 
 .PHONY: all install test distrib
 
-all: target/release/pizauth
-
-target/release/pizauth:
-	cargo build --release
-
 RUNNINGSYSTEMD=$(shell test -d /run/systemd/system/ && echo yes || echo no)
 ifeq ($(USESYSTEMD), 0)
 	INSTALLSYSTEMD :=
+	SYSTEMD_FEATURE :=
 else ifneq ($(RUNNINGSYSTEMD), yes)
 	INSTALLSYSTEMD :=
+	SYSTEMD_FEATURE :=
 else
 	INSTALLSYSTEMD := install-systemd
+	SYSTEMD_FEATURE := --features=systemd
 endif
+
+all: target/release/pizauth
+
+target/release/pizauth:
+	cargo build --release $(SYSTEMD_FEATURE)
 
 install: target/release/pizauth ${INSTALLSYSTEMD}
 	install -d ${DESTDIR}${BINDIR}
@@ -46,8 +49,8 @@ install-systemd:
 	install -c -m 444 lib/systemd/user/pizauth.service ${DESTDIR}${LIBDIR}/systemd/user/pizauth.service
 
 test:
-	cargo test
-	cargo test --release
+	cargo test $(SYSTEMD_FEATURE)
+	cargo test --release $(SYSTEMD_FEATURE)
 
 distrib:
 	test "X`git status --porcelain`" = "X"
