@@ -1,0 +1,22 @@
+name: CI OpenBSD
+
+on:
+  pull_request:
+
+jobs:
+  openbsd:
+    runs-on: ubuntu-latest
+    name: Tests OpenBSD x86_64
+    steps:
+    - uses: actions/checkout@v7
+    - name: Build and test in an OpenBSD VM
+      uses: vmactions/openbsd-vm@v1
+      with:
+        usesh: true
+        cache-after-prepare: true
+        prepare: |
+          pkg_add rust
+        run: |
+          set -e
+          cargo test
+          cargo test --release
