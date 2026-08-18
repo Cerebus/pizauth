@@ -42,6 +42,17 @@ const CODE_VERIFIER_LEN: usize = 64;
 /// The timeout for ureq HTTP requests. It is recommended to make this value lower than
 /// `REFRESH_RETRY_DEFAULT` to reduce the likelihood that refresh requests overlap.
 pub const UREQ_TIMEOUT: Duration = Duration::from_secs(30);
+
+fn ureq_config() -> ureq::config::Config {
+    ureq::Agent::config_builder()
+        .timeout_global(Some(UREQ_TIMEOUT))
+        .tls_config(
+            ureq::tls::TlsConfig::builder()
+                .root_certs(ureq::tls::RootCerts::PlatformVerifier)
+                .build(),
+        )
+        .build()
+}
 /// Length of the OAuth "state" in bytes: this is a string we send when requesting a token that is
 /// echoed back to us, allowing us to distinguish different request. There's no fixed size for
 /// this, and indeed one can go perhaps up to at least a kilobyte, but that's probably not going to
@@ -450,4 +461,19 @@ pub fn server(conf_path: PathBuf, conf: Config, cache_path: &Path) -> Result<(),
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ureq_config_uses_platform_verifier() {
+        let config = ureq_config();
+        assert!(matches!(
+            config.tls_config().root_certs(),
+            ureq::tls::RootCerts::PlatformVerifier
+        ));
+        assert!(!config.tls_config().disable_verification());
+    }
 }
