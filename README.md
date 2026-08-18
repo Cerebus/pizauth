@@ -18,6 +18,24 @@ notifications of authorisation requests and errors, which requires setting
 See [the bundled example configuration](examples/pizauth.conf) for more details.
 
 
+### TLS trust
+
+For outbound HTTPS requests, pizauth uses ureq's Rustls platform certificate
+verifier. Certificate and hostname verification remain enabled.
+
+On macOS, trust follows the Security framework and its user, administrator, and
+system-managed trust settings. On Linux and BSD, trust follows native CA
+discovery. For those Unix-like systems, `SSL_CERT_FILE` may name a PEM CA bundle
+and `SSL_CERT_DIR` may name an OpenSSL `c_rehash`-style CA directory; when set,
+these variables control the native CA source for the pizauth process instead of
+the discovered system source.
+
+Pizauth does not currently provide a separate CA-bundle configuration and does
+not disable certificate validation or fall back to Mozilla roots. Windows is not
+currently a supported pizauth target; if Windows support is added in the future,
+ureq's platform verifier will use the Windows certificate store.
+
+
 ### Account setup
 
 At a minimum you need to find out from your provider:
