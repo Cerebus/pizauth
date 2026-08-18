@@ -16,7 +16,7 @@ use serde_json::Value;
 use crate::{
     server::{
         eventer::TokenEvent, expiry_instant, AccountId, AuthenticatorState, CTGuard, TokenState,
-        MAX_WAIT_SECS, UREQ_TIMEOUT,
+        MAX_WAIT_SECS,
     },
     shell_cmd::shell_cmd,
 };
@@ -212,9 +212,7 @@ impl Refresher {
         }
 
         drop(ct_lk);
-        let agent_conf = ureq::Agent::config_builder()
-            .timeout_global(Some(UREQ_TIMEOUT))
-            .build();
+        let agent_conf = super::ureq_config();
         let body = match ureq::Agent::new_with_config(agent_conf)
             .post(token_uri.as_str())
             .send_form(pairs)

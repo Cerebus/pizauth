@@ -20,7 +20,6 @@ use rustls::{
 
 use super::{
     eventer::TokenEvent, expiry_instant, AccountId, AuthenticatorState, Config, TokenState,
-    UREQ_TIMEOUT,
 };
 
 /// How often should we try making a request to an OAuth server for possibly-temporary transport
@@ -150,9 +149,7 @@ fn request<T: Read + Write>(
     // request that partially makes a connection but does not then fully succeed is an error (since
     // we can't reuse authentication codes), and we'll have to start again entirely.
     let mut body = None;
-    let agent_conf = ureq::Agent::config_builder()
-        .timeout_global(Some(UREQ_TIMEOUT))
-        .build();
+    let agent_conf = super::ureq_config();
     for _ in 0..RETRY_POST {
         match ureq::Agent::new_with_config(agent_conf.clone())
             .post(token_uri.as_str())
