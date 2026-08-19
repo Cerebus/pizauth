@@ -5,6 +5,10 @@ mod refresher;
 mod request_token;
 mod state;
 
+#[cfg(any(test, target_os = "openbsd"))]
+use std::ffi::OsString;
+#[cfg(target_os = "openbsd")]
+use std::os::unix::ffi::OsStrExt;
 use std::{
     collections::HashMap,
     env,
@@ -52,6 +56,30 @@ fn ureq_config() -> ureq::config::Config {
                 .build(),
         )
         .build()
+}
+
+#[cfg(any(test, target_os = "openbsd"))]
+fn ssl_cert_paths(cert_file: Option<OsString>, cert_dirs: Option<OsString>) -> Vec<PathBuf> {
+    let mut paths = vec![PathBuf::from("/etc/ssl/cert.pem")];
+    if let Some(cert_file) = cert_file {
+        paths.push(cert_file.into());
+    }
+    if let Some(cert_dirs) = cert_dirs {
+        paths.extend(env::split_paths(&cert_dirs).filter(|path| !path.as_os_str().is_empty()));
+    }
+    paths
+}
+
+#[cfg(target_os = "openbsd")]
+fn unveil_ssl_cert_paths() -> Result<(), Box<dyn Error>> {
+    let paths = ssl_cert_paths(env::var_os("SSL_CERT_FILE"), env::var_os("SSL_CERT_DIR"))
+        .into_iter()
+        .filter(|path| path.exists())
+        .collect::<Vec<_>>();
+    for path in paths {
+        unveil(path.as_os_str().as_bytes(), "r")?;
+    }
+    Ok(())
 }
 /// Length of the OAuth "state" in bytes: this is a string we send when requesting a token that is
 /// echoed back to us, allowing us to distinguish different request. There's no fixed size for
@@ -373,6 +401,8 @@ pub fn server(conf_path: PathBuf, conf: Config, cache_path: &Path) -> Result<(),
     let sock_path = sock_path(cache_path);
 
     #[cfg(target_os = "openbsd")]
+    unveil_ssl_cert_paths()?;
+    #[cfg(target_os = "openbsd")]
     unveil(
         conf_path
             .as_os_str()
@@ -475,5 +505,21 @@ mod tests {
             ureq::tls::RootCerts::PlatformVerifier
         ));
         assert!(!config.tls_config().disable_verification());
+    }
+
+    #[test]
+    fn ssl_cert_paths_include_default_and_environment_paths() {
+        assert_eq!(
+            ssl_cert_paths(
+                Some("/custom/ca.pem".into()),
+                Some("/custom/certs:/another/certs".into()),
+            ),
+            vec![
+                PathBuf::from("/etc/ssl/cert.pem"),
+                PathBuf::from("/custom/ca.pem"),
+                PathBuf::from("/custom/certs"),
+                PathBuf::from("/another/certs"),
+            ]
+        );
     }
 }
